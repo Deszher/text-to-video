@@ -3,13 +3,13 @@
 
 #### Сreate a virtual environment
 ```bash
-  python -m venv .
+  python -m venv .venv
 ```
 
 
 #### Activate the virtual environment:
 ```bash
-  .\Scripts\activate
+  source .venv/bin/activate
 ```
 
 #### Upgrade pip
@@ -19,7 +19,7 @@
 
 #### Install all the dependencies listed in the `requirements.txt`
 ```
-  pip install requirements.txt
+  pip install -r requirements.txt
 ```
 ____________
 # Run Program
@@ -29,3 +29,21 @@ ____________
   python main.py
 ```
 
+### Линтинг и форматирование кода
+
+```
+black *.py
+flake8
+```
+
+# Идеи по улучшению проекта
+
+1. Добавить линтер, к примеру flake8
+
+2. Добавить форматтер, к примеру black
+
+3. Создать CI-пайплайн с линтингом, используя github actions
+
+4. Вынести UI в отдельный слой приложения, отделить от логики модели, в сторону Layered или Hexagonal архитектуры
+
+5. Добавить тесты, запускать в github actions
