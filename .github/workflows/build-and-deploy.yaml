@@ -1,0 +1,51 @@
+name: Build docker image and deploy to server
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+    env:
+      docker_registry_user: ${{ secrets.CI_REGISTRY_USER }}
+      docker_registry_password: ${{ secrets.CI_REGISTRY_PASSWORD }}
+      image: djvue/urfu-deployments:pi2-${{ github.ref_name }}
+      image_latest: djvue/urfu-deployments:pi2-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Login into docker hub
+      run: docker login -u $docker_registry_user -p "$docker_registry_password"
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag $image
+    - name: Push the Docker streamlit image
+      run: docker tag $image $image_latest
+    - name: Push the Docker streamlit image
+      run: docker push --all-tags $image
+
+  deploy:
+    name: Deploy to prod host
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      PACKAGES_TO_UPGRADE: ${{ needs.run_publish.outputs.packages }}
+      DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+
+      image_tag: ${{ github.ref_name }}
+      deploy_token: ${{ secrets.DEPLOY_TOKEN }}
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch to workflows
+        run: |
+            curl -X POST \
+            -F token="'$DISPATCH_TOKEN'" \
+            -F "ref=master" \
+            -F "variables[target]=deploy_home" \
+            -F "variables[name]=urfu_pi2" \
+            -F "variables[token]='$deploy_token'" \
+            -F "variables[image]='$image_tag'" \
+            "https://gitlab.com/api/v4/projects/55744560/trigger/pipeline"
