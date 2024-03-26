@@ -15,6 +15,7 @@ jobs:
       docker_registry_user: ${{ secrets.CI_REGISTRY_USER }}
       docker_registry_password: ${{ secrets.CI_REGISTRY_PASSWORD }}
       #image: djvue/urfu-deployments:pi2-${{ github.ref_name }}
+      base_image: djvue/urfu-deployments
       image: djvue/urfu-deployments:pi2-${{ github.sha }}
       image_latest: djvue/urfu-deployments:pi2-latest
     steps:
@@ -26,7 +27,7 @@ jobs:
     - name: Push the Docker streamlit image
       run: docker tag $image $image_latest
     - name: Push the Docker streamlit image
-      run: docker push --all-tags $image
+      run: docker push --all-tags $base_image
 
   deploy:
     name: Deploy to prod host
