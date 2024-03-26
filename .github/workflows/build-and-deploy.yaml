@@ -14,7 +14,8 @@ jobs:
     env:
       docker_registry_user: ${{ secrets.CI_REGISTRY_USER }}
       docker_registry_password: ${{ secrets.CI_REGISTRY_PASSWORD }}
-      image: djvue/urfu-deployments:pi2-${{ github.ref_name }}
+      #image: djvue/urfu-deployments:pi2-${{ github.ref_name }}
+      image: djvue/urfu-deployments:pi2-${{ github.sha }}
       image_latest: djvue/urfu-deployments:pi2-latest
     steps:
     - uses: actions/checkout@v2
@@ -34,9 +35,9 @@ jobs:
     env:
       PACKAGES_TO_UPGRADE: ${{ needs.run_publish.outputs.packages }}
       DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+      DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
 
-      image_tag: ${{ github.ref_name }}
-      deploy_token: ${{ secrets.DEPLOY_TOKEN }}
+      image: djvue/urfu-deployments:pi2-${{ github.sha }}
     timeout-minutes: 5
     steps:
       - name: Dispatch to workflows
@@ -46,6 +47,6 @@ jobs:
             -F "ref=master" \
             -F "variables[target]=deploy_home" \
             -F "variables[name]=urfu_pi2" \
-            -F "variables[token]='$deploy_token'" \
-            -F "variables[image]='$image_tag'" \
+            -F "variables[token]='$DEPLOY_TOKEN'" \
+            -F "variables[image]='$image'" \
             "https://gitlab.com/api/v4/projects/55744560/trigger/pipeline"
