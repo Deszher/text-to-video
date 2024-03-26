@@ -42,7 +42,7 @@ class Processor:
 
     def make_video(self, data: ProcessData):
         # TODO: using data.audio_file_path and data.image_file_path make video and save to data.video_file_path
-        pass
+        data.video_file_path = ""
 
     def save_to(self, data: ProcessData, save_dir: str) -> str:
         # Путь и название сохраняемого файла
