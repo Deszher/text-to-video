@@ -7,7 +7,7 @@ from pathlib import Path
 from domain.model import ProcessData
 from domain.speech_synt import get_speech
 
-FALLBACK_IMAGE = "img/fallback_image.png"
+FALLBACK_IMAGE = "ui/native_app/img/fallback_image.png"
 
 
 class Processor:
@@ -41,6 +41,7 @@ class Processor:
         return FALLBACK_IMAGE
 
     def make_video(self, data: ProcessData):
+        # TODO: using data.audio_file_path and data.image_file_path make video and save to data.video_file_path
         pass
 
     def save_to(self, data: ProcessData, save_dir: str) -> str:
