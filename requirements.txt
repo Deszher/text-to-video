@@ -26,9 +26,6 @@ pycodestyle==2.11.1
 pydantic==2.6.4
 pydantic_core==2.16.3
 pyflakes==3.2.0
-PyQt6==6.6.1
-PyQt6-Qt6==6.6.2
-PyQt6-sip==13.6.0
 pytest==8.1.1
 python-dotenv==1.0.1
 python-multipart==0.0.9

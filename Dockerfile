@@ -6,11 +6,14 @@ ENV PIP_DEFAULT_TIMEOUT=100 \
     # disable a pip version check to reduce run-time & log-spam
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     # cache is useless in docker image, so disable to reduce image size
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    CUDA_VISIBLE_DEVICES=-1
 
 COPY ./requirements.txt ./requirements.txt
 
+RUN pip3 install --user torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 RUN pip3 install --user -r requirements.txt
+
 
 FROM node:18-alpine as frontend-builder
 
@@ -18,11 +21,12 @@ COPY ./ui/web/frontend /app
 
 RUN cd /app && yarn install && yarn build
 
+
 FROM python:3.11-slim as final
 
 WORKDIR /app
 
-RUN apt -y update && apt install curl -y && apt autoremove -y && apt clean -y && rm -rf /var/lib/apt/lists/*
+RUN apt -y update && apt install -y curl && apt autoremove -y && apt clean -y && rm -rf /var/lib/apt/lists/*
 
 COPY . .
 

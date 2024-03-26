@@ -24,9 +24,22 @@
 ____________
 # Run Program
 
-### PyQt6-based player
+### PyQt6-based ui
+
+PyQt не добавлен в requirements.txt для ускорения сборки docker образа
+
 ```
-  python main.py
+  pip install PyQt6==6.6.1 PyQt6-Qt6==6.6.2 PyQt6-sip==13.6.0
+  python native_app.py
+```
+
+### Web ui
+
+Нужен node:18+ и yarn
+
+```
+  cd ui/web/frontend && yarn build
+  uvicorn web:app --reload
 ```
 
 ### Линтинг и форматирование кода
@@ -49,3 +62,11 @@ flake8
 5. Сохранять картинку, аудио и видео по случайному пути без перезаписи предыдущего результата, чтобы добавить возможность кэширования, параллельной работы для нескольких пользователей (например для возможного веб интерфейса)
 
 5. Добавить тесты, запускать в github actions
+
+### Building local docker image
+
+```bash
+docker build --platform=linux/amd64 -t djvue/urfu-deployments:pi2-latest .
+# push (requires docker login to hub.docker)
+docker push djvue/urfu-deployments:pi2-latest
+```
