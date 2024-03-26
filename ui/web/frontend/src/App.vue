@@ -45,6 +45,9 @@ export default {
       this.loading = false
 
       this.outputAudio = res.speech
+      if (res.video != '/') {
+        this.outputVideo = res.video
+      }
       console.log('success processApi', res)
     },
     async apiProcess(text, image) {
