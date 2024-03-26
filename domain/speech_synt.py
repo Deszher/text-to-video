@@ -22,11 +22,12 @@ def get_speech(text, selected_speaker) -> str:
 
     sample_rate = 48000
 
-    audio_path = 'data/'+str(uuid.uuid4())+'.wav'
+    audio_path = 'data/' + str(uuid.uuid4()) + '.wav'
 
     audio_paths = model.save_wav(
         text=text, speaker=selected_speaker, sample_rate=sample_rate, audio_path=audio_path
     )
+    _ = audio_paths
     # print(audio_paths)
 
     return audio_path

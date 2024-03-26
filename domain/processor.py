@@ -23,11 +23,11 @@ class Processor:
 
     def make_speech(self, data: ProcessData):
         data.audio_file_path = get_speech(data.input_text, data.input_speaker)
-        print("audio path: "+data.audio_file_path)
+        print("audio path: " + data.audio_file_path)
 
     def add_image(self, data: ProcessData, file: str):
         ext = file.split('.')[-1]
-        image_path = 'data/'+str(uuid.uuid4())+'.'+ext
+        image_path = 'data/' + str(uuid.uuid4()) + '.' + ext
         path = Path(file)
 
         shutil.copyfile(path, image_path)
