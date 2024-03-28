@@ -1,10 +1,6 @@
 name: Build docker image and deploy to server
 
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+on: [push, pull_request]
 
 jobs:
 
@@ -17,7 +13,7 @@ jobs:
       #image: djvue/urfu-deployments:pi2-${{ github.ref_name }}
       base_image: djvue/urfu-deployments
       image: djvue/urfu-deployments:pi2-${{ github.sha }}
-      image_latest: djvue/urfu-deployments:pi2-latest
+      image_latest: djvue/urfu-deployments:pi2-tiny-latest
     steps:
     - uses: actions/checkout@v2
     - name: Login into docker hub

@@ -6,3 +6,4 @@
 !/data/.gitignore
 /.git
 /.devcontainer
+/ui/web/frontend/node_modules

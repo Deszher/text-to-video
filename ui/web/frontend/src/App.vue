@@ -86,7 +86,11 @@ export default {
     <div>
       <h3 class="text-h4 step-title">Step 4: Enjoy the result</h3>
       <v-alert v-if="error != ''" :text="error" type="error"></v-alert>
-      <video v-if="outputVideo" class="video"></video>
+      <video v-if="outputVideo" class="video" controls>
+        <source
+          :src="outputVideo"
+          type="video/mp4" />
+      </video>
       <audio controls v-if="outputAudio" class="audio">
         <source :src="outputAudio" type="audio/wav">
         Your browser does not support the audio element.

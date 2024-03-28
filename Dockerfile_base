@@ -1,0 +1,90 @@
+FROM ubuntu:20.04 as base
+#FROM python:3.11-slim as base
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt -y update && apt install -y wget curl sudo software-properties-common zip \
+    libgstreamer1.0-dev gstreamer1.0-plugins-base gstreamer1.0-plugins-good git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev \
+    python-dev python-numpy libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libdc1394-22-dev python3-opencv \
+    libportaudio2 python3 python3-pip jq git git-lfs libgtk2.0-0 cmake \
+    sox ffmpeg libsm6 libxext6 \
+    build-essential g++-8 cmake libopenblas-dev
+
+### Build binaries
+# OpenCV
+RUN wget https://github.com/opencv/opencv/archive/4.1.0.zip \
+    && unzip 4.1.0.zip \
+    && rm 4.1.0.zip \
+    && cd opencv-4.1.0 \
+    && mkdir build \
+    && cd build \
+    && cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D BUILD_TIFF=ON -D WITH_TBB=ON .. \
+    && make -j2 \
+    && make install \
+    && rm -r /opencv-4.1.0
+
+# dlib
+RUN wget http://dlib.net/files/dlib-19.13.tar.bz2 \
+    && tar xf dlib-19.13.tar.bz2 \
+    && rm dlib-19.13.tar.bz2 \
+    && cd dlib-19.13 \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && cmake --build . --config Release \
+    && make install \
+    && ldconfig \
+    && apt install -y libboost-all-dev \
+    && rm -r /dlib-19.13
+
+# OpenFace
+RUN wget https://github.com/TadasBaltrusaitis/OpenFace/archive/refs/tags/OpenFace_2.2.0.zip \
+    && unzip OpenFace_2.2.0.zip \
+    && mv OpenFace-OpenFace_2.2.0 OpenFace \
+    && rm OpenFace_2.2.0.zip \
+    && cd OpenFace \
+    && mkdir build \
+    && cd build \
+    && cmake -D CMAKE_CXX_COMPILER=g++-8 -D CMAKE_C_COMPILER=gcc-8 -D CMAKE_BUILD_TYPE=RELEASE .. \
+    && make
+
+# pocketsphinx
+RUN mkdir -p /content && cd /content \
+    && git clone https://huggingface.co/camenduru/pocketsphinx-20.04-t4 pocketsphinx \
+    && cd /content/pocketsphinx \
+    && cmake --build build --target install
+    #&& rm -r /content/pocketsphinx
+
+### Prepare models
+# OpenFace
+RUN cd /OpenFace \
+    && bash ./download_models.sh \
+    && cp /OpenFace/lib/local/LandmarkDetector/model/patch_experts/* /OpenFace/build/bin/model/patch_experts/
+    # && mv lib/local/LandmarkDetector/model/patch_experts build/bin/model
+# RUN cd /OpenFace && ls -la build/bin/model/patch_experts
+# RUN cd /OpenFace && ls -la lib/local/LandmarkDetector/model/patch_experts
+
+# one-shot-talking-face models
+RUN mkdir -p /content/checkpoint && cd /content/checkpoint \
+    && curl https://public.nordpatriot.ru/AAAI22_models.zip -o AAAI22_models.zip \
+    && unzip AAAI22_models.zip \
+    && rm AAAI22_models.zip
+
+### Python and pip packages
+RUN add-apt-repository ppa:deadsnakes/ppa -y \
+    && apt update \
+    && apt install -y python3.10 python3.10-distutils \
+    && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10 \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
+# common requirements
+RUN pip3 install pocketsphinx imageio-ffmpeg numpy==1.23.0 pandas pyyaml==5.3.1
+# pip torch CPU
+RUN pip3 install torch torchvision torchaudio torchtext torchdata --index-url https://download.pytorch.org/whl/cpu
+# pip one-shot-talking-face requirements
+RUN apt install -y python3.10-dev libavdevice-dev libavfilter-dev libavformat-dev libavcodec-dev libswresample-dev libswscale-dev libavutil-dev libsox-dev
+RUN pip3 install scikit-image python_speech_features pyworld pyyaml imageio scipy pyworld opencv-python dlib
+
+###
+# clear apt cache
+RUN rm -rf /var/cache/apt/archives /var/lib/apt/lists/* && apt clean
