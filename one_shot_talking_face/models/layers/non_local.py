@@ -25,20 +25,18 @@ class NonLocal2dBlock(nn.Module):
             or ``'weight_demod'``.
     """
 
-    def __init__(self,
-                 in_channels,
-                 scale=True,
-                 clamp=False,
-                 weight_norm_type='none'):
+    def __init__(self, in_channels, scale=True, clamp=False, weight_norm_type="none"):
         super(NonLocal2dBlock, self).__init__()
         self.clamp = clamp
         self.gamma = nn.Parameter(torch.zeros(1)) if scale else 1.0
         self.in_channels = in_channels
-        base_conv2d_block = partial(Conv2dBlock,
-                                    kernel_size=1,
-                                    stride=1,
-                                    padding=0,
-                                    weight_norm_type=weight_norm_type)
+        base_conv2d_block = partial(
+            Conv2dBlock,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            weight_norm_type=weight_norm_type,
+        )
         self.theta = base_conv2d_block(in_channels, in_channels // 8)
         self.phi = base_conv2d_block(in_channels, in_channels // 8)
         self.g = base_conv2d_block(in_channels, in_channels // 2)

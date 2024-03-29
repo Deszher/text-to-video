@@ -12,8 +12,12 @@ app = FastAPI()
 
 templates = Jinja2Templates(directory="ui/web/frontend/dist")
 
-app.mount("/assets", StaticFiles(directory="ui/web/frontend/dist/assets"), name="assets")
-app.mount("/static", StaticFiles(directory="ui/web/frontend/dist/static"), name="static")
+app.mount(
+    "/assets", StaticFiles(directory="ui/web/frontend/dist/assets"), name="assets"
+)
+app.mount(
+    "/static", StaticFiles(directory="ui/web/frontend/dist/static"), name="static"
+)
 app.mount("/data", StaticFiles(directory="data"), name="data")
 
 
@@ -30,23 +34,25 @@ def process(
 ):
     data = processor.make_data()
 
-    processor.set_text_and_speaker(data, text, 'en_0')
+    processor.set_text_and_speaker(data, text, "en_0")
 
     processor.make_speech(data)
 
-    ext = image.filename.split('.')[-1]
-    image_path = 'data/' + str(uuid.uuid4()) + '.' + ext
+    ext = image.filename.split(".")[-1]
+    image_path = "data/" + str(uuid.uuid4()) + "." + ext
     with open(image_path, "wb+") as file_object:
         shutil.copyfileobj(image.file, file_object)
     processor.add_image(data, image_path)
 
     processor.make_video(data)
 
-    return {"status": "ok", "speech": '/' + data.audio_file_path, "video": '/' + data.video_file_path}
+    return {
+        "status": "ok",
+        "speech": "/" + data.audio_file_path,
+        "video": "/" + data.video_file_path,
+    }
 
 
 @app.get("/")
 def index(request: Request):
-    return templates.TemplateResponse(
-        request=request, name="index.html", context={}
-    )
+    return templates.TemplateResponse(request=request, name="index.html", context={})

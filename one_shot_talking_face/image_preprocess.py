@@ -1,12 +1,18 @@
 import dlib
 import cv2
+
+
 def compute_aspect_preserved_bbox(bbox, increase_area, h, w):
     left, top, right, bot = bbox
     width = right - left
     height = bot - top
 
-    width_increase = max(increase_area, ((1 + 2 * increase_area) * height - width) / (2 * width))
-    height_increase = max(increase_area, ((1 + 2 * increase_area) * width - height) / (2 * height))
+    width_increase = max(
+        increase_area, ((1 + 2 * increase_area) * height - width) / (2 * width)
+    )
+    height_increase = max(
+        increase_area, ((1 + 2 * increase_area) * width - height) / (2 * height)
+    )
 
     left_t = int(left - width_increase * width)
     top_t = int(top - height_increase * height)
@@ -29,29 +35,33 @@ def compute_aspect_preserved_bbox(bbox, increase_area, h, w):
     else:
         return (left_t, top_t, right_t, bot_t)
 
-def crop_src_image(src_img,save_img, detector=None):
-    if  detector is None:
+
+def crop_src_image(src_img, save_img, detector=None):
+    if detector is None:
         detector = dlib.get_frontal_face_detector()
 
     img = cv2.imread(src_img)
     faces = detector(img, 0)
     h, width, _ = img.shape
     if len(faces) > 0:
-        bbox = [faces[0].left(), faces[0].top(),faces[0].right(), faces[0].bottom()]
-        l = bbox[3]-bbox[1]
-        bbox[1]= bbox[1]-l*0.1
-        bbox[3]= bbox[3]-l*0.1
-        bbox[1] = max(0,bbox[1])
-        bbox[3] = min(h,bbox[3])
-        bbox = compute_aspect_preserved_bbox(tuple(bbox), 0.5, img.shape[0], img.shape[1])
-        img = img[bbox[1] :bbox[3] , bbox[0]:bbox[2]]
+        bbox = [faces[0].left(), faces[0].top(), faces[0].right(), faces[0].bottom()]
+        ll = bbox[3] - bbox[1]
+        bbox[1] = bbox[1] - ll * 0.1
+        bbox[3] = bbox[3] - ll * 0.1
+        bbox[1] = max(0, bbox[1])
+        bbox[3] = min(h, bbox[3])
+        bbox = compute_aspect_preserved_bbox(
+            tuple(bbox), 0.5, img.shape[0], img.shape[1]
+        )
+        img = img[bbox[1] : bbox[3], bbox[0] : bbox[2]]
         img = cv2.resize(img, (256, 256))
-        cv2.imwrite(save_img,img)
+        cv2.imwrite(save_img, img)
     else:
-        img = cv2.resize(img,(256,256))
+        img = cv2.resize(img, (256, 256))
         cv2.imwrite(save_img, img)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     src_img = ""
     out_img = ""
-    crop_src_image(src_img,out_img)
+    crop_src_image(src_img, out_img)

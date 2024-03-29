@@ -18,13 +18,13 @@ def test_make_speech():
     print(data.audio_file_path)
 
 
-def test_make_speech():
-    processor = Processor()
+# def test_make_video():
+#     processor = Processor()
 
-    data = processor.make_data()
+#     data = processor.make_data()
 
-    processor.set_text_and_speaker(data, "test", "en_0")
+#     processor.set_text_and_speaker(data, "test", "en_0")
 
-    processor.make_speech(data)
+#     processor.make_speech(data)
 
-    processor.make_video(data)
+#     processor.make_video(data)

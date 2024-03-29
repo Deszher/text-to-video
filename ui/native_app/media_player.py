@@ -1,4 +1,5 @@
 """Audio Player Class"""
+
 import sys
 
 import vlc

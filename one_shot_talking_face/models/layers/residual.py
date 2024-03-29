@@ -8,26 +8,48 @@ from torch import nn
 from torch.nn import Upsample as NearestUpsample
 from torch.utils.checkpoint import checkpoint
 
-from .conv import (Conv1dBlock, Conv2dBlock, Conv3dBlock, HyperConv2dBlock,
-                   LinearBlock, MultiOutConv2dBlock, PartialConv2dBlock,
-                   PartialConv3dBlock)
+from .conv import (
+    Conv1dBlock,
+    Conv2dBlock,
+    Conv3dBlock,
+    HyperConv2dBlock,
+    LinearBlock,
+    MultiOutConv2dBlock,
+    PartialConv2dBlock,
+    PartialConv3dBlock,
+)
 
 
 class _BaseResBlock(nn.Module):
-    r"""An abstract class for residual blocks.
-    """
+    r"""An abstract class for residual blocks."""
 
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 padding, dilation, groups, bias, padding_mode,
-                 weight_norm_type, weight_norm_params,
-                 activation_norm_type, activation_norm_params,
-                 skip_activation_norm, skip_nonlinearity,
-                 nonlinearity, inplace_nonlinearity, apply_noise,
-                 hidden_channels_equal_out_channels,
-                 order, block, learn_shortcut):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding,
+        dilation,
+        groups,
+        bias,
+        padding_mode,
+        weight_norm_type,
+        weight_norm_params,
+        activation_norm_type,
+        activation_norm_params,
+        skip_activation_norm,
+        skip_nonlinearity,
+        nonlinearity,
+        inplace_nonlinearity,
+        apply_noise,
+        hidden_channels_equal_out_channels,
+        order,
+        block,
+        learn_shortcut,
+    ):
         super().__init__()
-        if order == 'pre_act':
-            order = 'NACNAC'
+        if order == "pre_act":
+            order = "NACNAC"
         if isinstance(bias, bool):
             # The bias for conv_block_0, conv_block_1, and conv_block_s.
             biases = [bias, bias, bias]
@@ -35,12 +57,12 @@ class _BaseResBlock(nn.Module):
             if len(bias) == 3:
                 biases = bias
             else:
-                raise ValueError('Bias list must be 3.')
+                raise ValueError("Bias list must be 3.")
         else:
-            raise ValueError('Bias must be either an integer or s list.')
+            raise ValueError("Bias must be either an integer or s list.")
         self.learn_shortcut = (in_channels != out_channels) or learn_shortcut
         if len(order) > 6 or len(order) < 5:
-            raise ValueError('order must be either 5 or 6 characters')
+            raise ValueError("order must be either 5 or 6 characters")
         if hidden_channels_equal_out_channels:
             hidden_channels = out_channels
         else:
@@ -50,67 +72,86 @@ class _BaseResBlock(nn.Module):
         conv_main_params = {}
         conv_skip_params = {}
         if block != LinearBlock:
-            conv_base_params = dict(stride=1, dilation=dilation,
-                                    groups=groups, padding_mode=padding_mode)
+            conv_base_params = dict(
+                stride=1, dilation=dilation, groups=groups, padding_mode=padding_mode
+            )
             conv_main_params.update(conv_base_params)
             conv_main_params.update(
-                dict(kernel_size=kernel_size,
-                     activation_norm_type=activation_norm_type,
-                     activation_norm_params=activation_norm_params,
-                     padding=padding))
+                dict(
+                    kernel_size=kernel_size,
+                    activation_norm_type=activation_norm_type,
+                    activation_norm_params=activation_norm_params,
+                    padding=padding,
+                )
+            )
             conv_skip_params.update(conv_base_params)
             conv_skip_params.update(dict(kernel_size=1))
             if skip_activation_norm:
                 conv_skip_params.update(
-                    dict(activation_norm_type=activation_norm_type,
-                         activation_norm_params=activation_norm_params))
+                    dict(
+                        activation_norm_type=activation_norm_type,
+                        activation_norm_params=activation_norm_params,
+                    )
+                )
 
         # Other parameters.
-        other_params = dict(weight_norm_type=weight_norm_type,
-                            weight_norm_params=weight_norm_params,
-                            apply_noise=apply_noise)
+        other_params = dict(
+            weight_norm_type=weight_norm_type,
+            weight_norm_params=weight_norm_params,
+            apply_noise=apply_noise,
+        )
 
         # Residual branch.
-        if order.find('A') < order.find('C') and \
-                (activation_norm_type == '' or activation_norm_type == 'none'):
+        if order.find("A") < order.find("C") and (
+            activation_norm_type == "" or activation_norm_type == "none"
+        ):
             # Nonlinearity is the first operation in the residual path.
             # In-place nonlinearity will modify the input variable and cause
             # backward error.
             first_inplace = False
         else:
             first_inplace = inplace_nonlinearity
-        self.conv_block_0 = block(in_channels, hidden_channels,
-                                  bias=biases[0],
-                                  nonlinearity=nonlinearity,
-                                  order=order[0:3],
-                                  inplace_nonlinearity=first_inplace,
-                                  **conv_main_params,
-                                  **other_params)
-        self.conv_block_1 = block(hidden_channels, out_channels,
-                                  bias=biases[1],
-                                  nonlinearity=nonlinearity,
-                                  order=order[3:],
-                                  inplace_nonlinearity=inplace_nonlinearity,
-                                  **conv_main_params,
-                                  **other_params)
+        self.conv_block_0 = block(
+            in_channels,
+            hidden_channels,
+            bias=biases[0],
+            nonlinearity=nonlinearity,
+            order=order[0:3],
+            inplace_nonlinearity=first_inplace,
+            **conv_main_params,
+            **other_params
+        )
+        self.conv_block_1 = block(
+            hidden_channels,
+            out_channels,
+            bias=biases[1],
+            nonlinearity=nonlinearity,
+            order=order[3:],
+            inplace_nonlinearity=inplace_nonlinearity,
+            **conv_main_params,
+            **other_params
+        )
 
         # Shortcut branch.
         if self.learn_shortcut:
             if skip_nonlinearity:
                 skip_nonlinearity_type = nonlinearity
             else:
-                skip_nonlinearity_type = ''
-            self.conv_block_s = block(in_channels, out_channels,
-                                      bias=biases[2],
-                                      nonlinearity=skip_nonlinearity_type,
-                                      order=order[0:3],
-                                      **conv_skip_params,
-                                      **other_params)
+                skip_nonlinearity_type = ""
+            self.conv_block_s = block(
+                in_channels,
+                out_channels,
+                bias=biases[2],
+                nonlinearity=skip_nonlinearity_type,
+                order=order[0:3],
+                **conv_skip_params,
+                **other_params
+            )
 
         # Whether this block expects conditional inputs.
-        self.conditional = \
-            getattr(self.conv_block_0, 'conditional', False) or \
-            getattr(self.conv_block_1, 'conditional', False)
+        self.conditional = getattr(self.conv_block_0, "conditional", False) or getattr(
+            self.conv_block_1, "conditional", False
+        )
 
     def conv_blocks(self, x, *cond_inputs, **kw_cond_inputs):
         r"""Returns the output of the residual branch.
@@ -205,21 +246,47 @@ class ResLinearBlock(_BaseResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, bias=True,
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', learn_shortcut=False):
-        super().__init__(in_channels, out_channels, None, None,
-                         None, None, bias, None,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity,
-                         apply_noise, hidden_channels_equal_out_channels,
-                         order, LinearBlock, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        bias=True,
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            None,
+            None,
+            None,
+            None,
+            bias,
+            None,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            LinearBlock,
+            learn_shortcut,
+        )
 
 
 class Res1dBlock(_BaseResBlock):
@@ -283,23 +350,52 @@ class Res1dBlock(_BaseResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity, apply_noise,
-                         hidden_channels_equal_out_channels,
-                         order, Conv1dBlock, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            Conv1dBlock,
+            learn_shortcut,
+        )
 
 
 class Res2dBlock(_BaseResBlock):
@@ -363,23 +459,52 @@ class Res2dBlock(_BaseResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity, apply_noise,
-                         hidden_channels_equal_out_channels,
-                         order, Conv2dBlock, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            Conv2dBlock,
+            learn_shortcut,
+        )
 
 
 class Res3dBlock(_BaseResBlock):
@@ -443,52 +568,118 @@ class Res3dBlock(_BaseResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity, apply_noise,
-                         hidden_channels_equal_out_channels,
-                         order, Conv3dBlock, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            Conv3dBlock,
+            learn_shortcut,
+        )
 
 
 class _BaseHyperResBlock(_BaseResBlock):
-    r"""An abstract class for hyper residual blocks.
-    """
+    r"""An abstract class for hyper residual blocks."""
 
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 padding, dilation, groups, bias, padding_mode,
-                 weight_norm_type, weight_norm_params,
-                 activation_norm_type, activation_norm_params,
-                 skip_activation_norm, skip_nonlinearity,
-                 nonlinearity, inplace_nonlinearity, apply_noise,
-                 hidden_channels_equal_out_channels,
-                 order,
-                 is_hyper_conv, is_hyper_norm, block, learn_shortcut):
-        block = functools.partial(block,
-                                  is_hyper_conv=is_hyper_conv,
-                                  is_hyper_norm=is_hyper_norm)
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity, apply_noise,
-                         hidden_channels_equal_out_channels,
-                         order, block, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding,
+        dilation,
+        groups,
+        bias,
+        padding_mode,
+        weight_norm_type,
+        weight_norm_params,
+        activation_norm_type,
+        activation_norm_params,
+        skip_activation_norm,
+        skip_nonlinearity,
+        nonlinearity,
+        inplace_nonlinearity,
+        apply_noise,
+        hidden_channels_equal_out_channels,
+        order,
+        is_hyper_conv,
+        is_hyper_norm,
+        block,
+        learn_shortcut,
+    ):
+        block = functools.partial(
+            block, is_hyper_conv=is_hyper_conv, is_hyper_norm=is_hyper_norm
+        )
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            block,
+            learn_shortcut,
+        )
 
-    def forward(self, x, *cond_inputs, conv_weights=(None,) * 3,
-                norm_weights=(None,) * 3, **kw_cond_inputs):
+    def forward(
+        self,
+        x,
+        *cond_inputs,
+        conv_weights=(None,) * 3,
+        norm_weights=(None,) * 3,
+        **kw_cond_inputs
+    ):
         r"""
 
         Args:
@@ -502,14 +693,19 @@ class _BaseHyperResBlock(_BaseResBlock):
         Returns:
             output (tensor): Output tensor.
         """
-        dx = self.conv_block_0(x, *cond_inputs, conv_weights=conv_weights[0],
-                               norm_weights=norm_weights[0])
-        dx = self.conv_block_1(dx, *cond_inputs, conv_weights=conv_weights[1],
-                               norm_weights=norm_weights[1])
+        dx = self.conv_block_0(
+            x, *cond_inputs, conv_weights=conv_weights[0], norm_weights=norm_weights[0]
+        )
+        dx = self.conv_block_1(
+            dx, *cond_inputs, conv_weights=conv_weights[1], norm_weights=norm_weights[1]
+        )
         if self.learn_shortcut:
-            x_shortcut = self.conv_block_s(x, *cond_inputs,
-                                           conv_weights=conv_weights[2],
-                                           norm_weights=norm_weights[2])
+            x_shortcut = self.conv_block_s(
+                x,
+                *cond_inputs,
+                conv_weights=conv_weights[2],
+                norm_weights=norm_weights[2]
+            )
         else:
             x_shortcut = x
         output = x_shortcut + dx
@@ -581,47 +777,110 @@ class HyperRes2dBlock(_BaseHyperResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='', weight_norm_params=None,
-                 activation_norm_type='', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', is_hyper_conv=False, is_hyper_norm=False,
-                 learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity, apply_noise,
-                         hidden_channels_equal_out_channels,
-                         order, is_hyper_conv, is_hyper_norm,
-                         HyperConv2dBlock, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="",
+        weight_norm_params=None,
+        activation_norm_type="",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        is_hyper_conv=False,
+        is_hyper_norm=False,
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            is_hyper_conv,
+            is_hyper_norm,
+            HyperConv2dBlock,
+            learn_shortcut,
+        )
 
 
 class _BaseDownResBlock(_BaseResBlock):
-    r"""An abstract class for residual blocks with downsampling.
-    """
+    r"""An abstract class for residual blocks with downsampling."""
 
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 padding, dilation, groups, bias, padding_mode,
-                 weight_norm_type, weight_norm_params,
-                 activation_norm_type, activation_norm_params,
-                 skip_activation_norm, skip_nonlinearity,
-                 nonlinearity, inplace_nonlinearity,
-                 apply_noise, hidden_channels_equal_out_channels,
-                 order, block, pooling, down_factor, learn_shortcut):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity,
-                         apply_noise, hidden_channels_equal_out_channels,
-                         order, block, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding,
+        dilation,
+        groups,
+        bias,
+        padding_mode,
+        weight_norm_type,
+        weight_norm_params,
+        activation_norm_type,
+        activation_norm_params,
+        skip_activation_norm,
+        skip_nonlinearity,
+        nonlinearity,
+        inplace_nonlinearity,
+        apply_noise,
+        hidden_channels_equal_out_channels,
+        order,
+        block,
+        pooling,
+        down_factor,
+        learn_shortcut,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            block,
+            learn_shortcut,
+        )
         self.pooling = pooling(down_factor)
 
     def forward(self, x, *cond_inputs):
@@ -709,47 +968,110 @@ class DownRes2dBlock(_BaseDownResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', pooling=nn.AvgPool2d, down_factor=2,
-                 learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity, apply_noise,
-                         hidden_channels_equal_out_channels,
-                         order, Conv2dBlock, pooling,
-                         down_factor, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        pooling=nn.AvgPool2d,
+        down_factor=2,
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            Conv2dBlock,
+            pooling,
+            down_factor,
+            learn_shortcut,
+        )
 
 
 class _BaseUpResBlock(_BaseResBlock):
-    r"""An abstract class for residual blocks with upsampling.
-    """
+    r"""An abstract class for residual blocks with upsampling."""
 
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 padding, dilation, groups, bias, padding_mode,
-                 weight_norm_type, weight_norm_params,
-                 activation_norm_type, activation_norm_params,
-                 skip_activation_norm, skip_nonlinearity,
-                 nonlinearity, inplace_nonlinearity,
-                 apply_noise, hidden_channels_equal_out_channels,
-                 order, block, upsample, up_factor, learn_shortcut):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity,
-                         apply_noise, hidden_channels_equal_out_channels,
-                         order, block, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding,
+        dilation,
+        groups,
+        bias,
+        padding_mode,
+        weight_norm_type,
+        weight_norm_params,
+        activation_norm_type,
+        activation_norm_params,
+        skip_activation_norm,
+        skip_nonlinearity,
+        nonlinearity,
+        inplace_nonlinearity,
+        apply_noise,
+        hidden_channels_equal_out_channels,
+        order,
+        block,
+        upsample,
+        up_factor,
+        learn_shortcut,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            block,
+            learn_shortcut,
+        )
         self.order = order
         self.upsample = upsample(scale_factor=up_factor)
 
@@ -776,9 +1098,9 @@ class _BaseUpResBlock(_BaseResBlock):
         else:
             x_shortcut = self.upsample(x)
 
-        if self.order[0:3] == 'NAC':
+        if self.order[0:3] == "NAC":
             for ix, layer in enumerate(self.conv_block_0.layers.values()):
-                if getattr(layer, 'conditional', False):
+                if getattr(layer, "conditional", False):
                     x = layer(x, *cond_inputs)
                 else:
                     x = layer(x)
@@ -857,52 +1179,114 @@ class UpRes2dBlock(_BaseUpResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', upsample=NearestUpsample, up_factor=2,
-                 learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity,
-                         apply_noise, hidden_channels_equal_out_channels,
-                         order, Conv2dBlock,
-                         upsample, up_factor, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        upsample=NearestUpsample,
+        up_factor=2,
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            Conv2dBlock,
+            upsample,
+            up_factor,
+            learn_shortcut,
+        )
 
 
 class _BasePartialResBlock(_BaseResBlock):
-    r"""An abstract class for residual blocks with partial convolution.
-    """
+    r"""An abstract class for residual blocks with partial convolution."""
 
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 padding, dilation, groups, bias, padding_mode,
-                 weight_norm_type, weight_norm_params,
-                 activation_norm_type, activation_norm_params,
-                 skip_activation_norm, skip_nonlinearity,
-                 nonlinearity, inplace_nonlinearity,
-                 multi_channel, return_mask,
-                 apply_noise, hidden_channels_equal_out_channels,
-                 order, block, learn_shortcut):
-        block = functools.partial(block,
-                                  multi_channel=multi_channel,
-                                  return_mask=return_mask)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding,
+        dilation,
+        groups,
+        bias,
+        padding_mode,
+        weight_norm_type,
+        weight_norm_params,
+        activation_norm_type,
+        activation_norm_params,
+        skip_activation_norm,
+        skip_nonlinearity,
+        nonlinearity,
+        inplace_nonlinearity,
+        multi_channel,
+        return_mask,
+        apply_noise,
+        hidden_channels_equal_out_channels,
+        order,
+        block,
+        learn_shortcut,
+    ):
+        block = functools.partial(
+            block, multi_channel=multi_channel, return_mask=return_mask
+        )
         self.partial_conv = True
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity,
-                         apply_noise, hidden_channels_equal_out_channels,
-                         order, block, learn_shortcut)
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            block,
+            learn_shortcut,
+        )
 
     def forward(self, x, *cond_inputs, mask_in=None, **kw_cond_inputs):
         r"""
@@ -919,21 +1303,22 @@ class _BasePartialResBlock(_BaseResBlock):
               - mask_out (tensor, optional): Masks the valid output region.
         """
         if self.conv_block_0.layers.conv.return_mask:
-            dx, mask_out = self.conv_block_0(x, *cond_inputs,
-                                             mask_in=mask_in, **kw_cond_inputs)
-            dx, mask_out = self.conv_block_1(dx, *cond_inputs,
-                                             mask_in=mask_out, **kw_cond_inputs)
+            dx, mask_out = self.conv_block_0(
+                x, *cond_inputs, mask_in=mask_in, **kw_cond_inputs
+            )
+            dx, mask_out = self.conv_block_1(
+                dx, *cond_inputs, mask_in=mask_out, **kw_cond_inputs
+            )
         else:
-            dx = self.conv_block_0(x, *cond_inputs,
-                                   mask_in=mask_in, **kw_cond_inputs)
-            dx = self.conv_block_1(dx, *cond_inputs,
-                                   mask_in=mask_in, **kw_cond_inputs)
+            dx = self.conv_block_0(x, *cond_inputs, mask_in=mask_in, **kw_cond_inputs)
+            dx = self.conv_block_1(dx, *cond_inputs, mask_in=mask_in, **kw_cond_inputs)
             mask_out = None
 
         if self.learn_shortcut:
-            x_shortcut = self.conv_block_s(x, mask_in=mask_in, *cond_inputs,
-                                           **kw_cond_inputs)
-            if type(x_shortcut) == tuple:
+            x_shortcut = self.conv_block_s(
+                x, mask_in=mask_in, *cond_inputs, **kw_cond_inputs
+            )
+            if x_shortcut is tuple:
                 x_shortcut, _ = x_shortcut
         else:
             x_shortcut = x
@@ -1005,26 +1390,56 @@ class PartialRes2dBlock(_BasePartialResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 multi_channel=False, return_mask=True,
-                 apply_noise=False,
-                 hidden_channels_equal_out_channels=False,
-                 order='CNACNA', learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity,
-                         multi_channel, return_mask,
-                         apply_noise, hidden_channels_equal_out_channels,
-                         order, PartialConv2dBlock, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        multi_channel=False,
+        return_mask=True,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            multi_channel,
+            return_mask,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            PartialConv2dBlock,
+            learn_shortcut,
+        )
 
 
 class PartialRes3dBlock(_BasePartialResBlock):
@@ -1088,48 +1503,109 @@ class PartialRes3dBlock(_BasePartialResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 multi_channel=False, return_mask=True,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity,
-                         multi_channel, return_mask,
-                         apply_noise, hidden_channels_equal_out_channels,
-                         order, PartialConv3dBlock, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        multi_channel=False,
+        return_mask=True,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            multi_channel,
+            return_mask,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            PartialConv3dBlock,
+            learn_shortcut,
+        )
 
 
 class _BaseMultiOutResBlock(_BaseResBlock):
-    r"""An abstract class for residual blocks that can returns multiple outputs.
-    """
+    r"""An abstract class for residual blocks that can returns multiple outputs."""
 
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 padding, dilation, groups, bias, padding_mode,
-                 weight_norm_type, weight_norm_params,
-                 activation_norm_type, activation_norm_params,
-                 skip_activation_norm, skip_nonlinearity,
-                 nonlinearity, inplace_nonlinearity,
-                 apply_noise, hidden_channels_equal_out_channels,
-                 order, block, learn_shortcut):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding,
+        dilation,
+        groups,
+        bias,
+        padding_mode,
+        weight_norm_type,
+        weight_norm_params,
+        activation_norm_type,
+        activation_norm_params,
+        skip_activation_norm,
+        skip_nonlinearity,
+        nonlinearity,
+        inplace_nonlinearity,
+        apply_noise,
+        hidden_channels_equal_out_channels,
+        order,
+        block,
+        learn_shortcut,
+    ):
         self.multiple_outputs = True
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity, apply_noise,
-                         hidden_channels_equal_out_channels,
-                         order, block, learn_shortcut)
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            block,
+            learn_shortcut,
+        )
 
     def forward(self, x, *cond_inputs):
         r"""
@@ -1216,20 +1692,49 @@ class MultiOutRes2dBlock(_BaseMultiOutResBlock):
             channels.
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3,
-                 padding=1, dilation=1, groups=1, bias=True,
-                 padding_mode='zeros',
-                 weight_norm_type='none', weight_norm_params=None,
-                 activation_norm_type='none', activation_norm_params=None,
-                 skip_activation_norm=True, skip_nonlinearity=False,
-                 nonlinearity='leakyrelu', inplace_nonlinearity=False,
-                 apply_noise=False, hidden_channels_equal_out_channels=False,
-                 order='CNACNA', learn_shortcut=False):
-        super().__init__(in_channels, out_channels, kernel_size, padding,
-                         dilation, groups, bias, padding_mode,
-                         weight_norm_type, weight_norm_params,
-                         activation_norm_type, activation_norm_params,
-                         skip_activation_norm, skip_nonlinearity,
-                         nonlinearity, inplace_nonlinearity,
-                         apply_noise, hidden_channels_equal_out_channels,
-                         order, MultiOutConv2dBlock, learn_shortcut)
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        padding=1,
+        dilation=1,
+        groups=1,
+        bias=True,
+        padding_mode="zeros",
+        weight_norm_type="none",
+        weight_norm_params=None,
+        activation_norm_type="none",
+        activation_norm_params=None,
+        skip_activation_norm=True,
+        skip_nonlinearity=False,
+        nonlinearity="leakyrelu",
+        inplace_nonlinearity=False,
+        apply_noise=False,
+        hidden_channels_equal_out_channels=False,
+        order="CNACNA",
+        learn_shortcut=False,
+    ):
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            padding,
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            weight_norm_type,
+            weight_norm_params,
+            activation_norm_type,
+            activation_norm_params,
+            skip_activation_norm,
+            skip_nonlinearity,
+            nonlinearity,
+            inplace_nonlinearity,
+            apply_noise,
+            hidden_channels_equal_out_channels,
+            order,
+            MultiOutConv2dBlock,
+            learn_shortcut,
+        )

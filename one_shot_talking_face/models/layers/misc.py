@@ -31,6 +31,7 @@ class ApplyNoise(nn.Module):
 
 class PartialSequential(nn.Sequential):
     r"""Sequential block for partial convolutions."""
+
     def __init__(self, *modules):
         super(PartialSequential, self).__init__(*modules)
 

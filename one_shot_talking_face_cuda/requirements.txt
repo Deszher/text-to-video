@@ -1,9 +1,0 @@
-scikit-image
-python_speech_features
-pyworld
-pyyaml
-imageio
-scipy
-pyworld
-opencv-python
-dlib

@@ -1,4 +1,5 @@
 """Processor is a facade to process logic"""
+
 import os
 import shutil
 import uuid
@@ -27,8 +28,8 @@ class Processor:
         print("audio path: " + data.audio_file_path)
 
     def add_image(self, data: ProcessData, file: str):
-        ext = file.split('.')[-1]
-        image_path = 'data/' + str(uuid.uuid4()) + '.' + ext
+        ext = file.split(".")[-1]
+        image_path = "data/" + str(uuid.uuid4()) + "." + ext
         path = Path(file)
 
         shutil.copyfile(path, image_path)

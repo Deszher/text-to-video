@@ -42,32 +42,40 @@ class AdaptiveNorm(nn.Module):
             keyword arguments when initializing activation normalization.
     """
 
-    def __init__(self, num_features, cond_dims, weight_norm_type='',
-                 projection=True,
-                 separate_projection=False,
-                 input_dim=2,
-                 activation_norm_type='instance',
-                 activation_norm_params=None):
+    def __init__(
+        self,
+        num_features,
+        cond_dims,
+        weight_norm_type="",
+        projection=True,
+        separate_projection=False,
+        input_dim=2,
+        activation_norm_type="instance",
+        activation_norm_params=None,
+    ):
         super().__init__()
         self.projection = projection
         self.separate_projection = separate_projection
         if activation_norm_params is None:
             activation_norm_params = SimpleNamespace(affine=False)
-        self.norm = get_activation_norm_layer(num_features,
-                                              activation_norm_type,
-                                              input_dim,
-                                              **vars(activation_norm_params))
+        self.norm = get_activation_norm_layer(
+            num_features,
+            activation_norm_type,
+            input_dim,
+            **vars(activation_norm_params)
+        )
         if self.projection:
             if self.separate_projection:
-                self.fc_gamma = \
-                    LinearBlock(cond_dims, num_features,
-                                weight_norm_type=weight_norm_type)
-                self.fc_beta = \
-                    LinearBlock(cond_dims, num_features,
-                                weight_norm_type=weight_norm_type)
+                self.fc_gamma = LinearBlock(
+                    cond_dims, num_features, weight_norm_type=weight_norm_type
+                )
+                self.fc_beta = LinearBlock(
+                    cond_dims, num_features, weight_norm_type=weight_norm_type
+                )
             else:
-                self.fc = LinearBlock(cond_dims, num_features * 2,
-                                      weight_norm_type=weight_norm_type)
+                self.fc = LinearBlock(
+                    cond_dims, num_features * 2, weight_norm_type=weight_norm_type
+                )
 
         self.conditional = True
 
@@ -124,16 +132,18 @@ class SpatiallyAdaptiveNorm(nn.Module):
             keyword arguments when initializing activation normalization.
     """
 
-    def __init__(self,
-                 num_features,
-                 cond_dims,
-                 num_filters=128,
-                 kernel_size=3,
-                 weight_norm_type='',
-                 separate_projection=False,
-                 activation_norm_type='sync_batch',
-                 activation_norm_params=None,
-                 partial=False):
+    def __init__(
+        self,
+        num_features,
+        cond_dims,
+        num_filters=128,
+        kernel_size=3,
+        weight_norm_type="",
+        separate_projection=False,
+        activation_norm_type="sync_batch",
+        activation_norm_params=None,
+        partial=False,
+    ):
         super().__init__()
         if activation_norm_params is None:
             activation_norm_params = SimpleNamespace(affine=False)
@@ -144,7 +154,7 @@ class SpatiallyAdaptiveNorm(nn.Module):
         self.betas = nn.ModuleList()
 
         # Make cond_dims a list.
-        if type(cond_dims) != list:
+        if cond_dims is not list:
             cond_dims = [cond_dims]
 
         # Make num_filters a list.
@@ -165,40 +175,57 @@ class SpatiallyAdaptiveNorm(nn.Module):
             sequential = PartialSequential if partial[i] else nn.Sequential
 
             if num_filters[i] > 0:
-                mlp += [conv_block(cond_dim,
-                                   num_filters[i],
-                                   kernel_size,
-                                   padding=padding,
-                                   weight_norm_type=weight_norm_type,
-                                   nonlinearity='relu')]
+                mlp += [
+                    conv_block(
+                        cond_dim,
+                        num_filters[i],
+                        kernel_size,
+                        padding=padding,
+                        weight_norm_type=weight_norm_type,
+                        nonlinearity="relu",
+                    )
+                ]
             mlp_ch = cond_dim if num_filters[i] == 0 else num_filters[i]
 
             if self.separate_projection:
                 if partial[i]:
                     raise NotImplementedError(
-                        'Separate projection not yet implemented for ' +
-                        'partial conv')
+                        "Separate projection not yet implemented for " + "partial conv"
+                    )
                 self.mlps.append(nn.Sequential(*mlp))
                 self.gammas.append(
-                    conv_block(mlp_ch, num_features,
-                               kernel_size,
-                               padding=padding,
-                               weight_norm_type=weight_norm_type))
+                    conv_block(
+                        mlp_ch,
+                        num_features,
+                        kernel_size,
+                        padding=padding,
+                        weight_norm_type=weight_norm_type,
+                    )
+                )
                 self.betas.append(
-                    conv_block(mlp_ch, num_features,
-                               kernel_size,
-                               padding=padding,
-                               weight_norm_type=weight_norm_type))
+                    conv_block(
+                        mlp_ch,
+                        num_features,
+                        kernel_size,
+                        padding=padding,
+                        weight_norm_type=weight_norm_type,
+                    )
+                )
             else:
-                mlp += [conv_block(mlp_ch, num_features * 2, kernel_size,
-                                   padding=padding,
-                                   weight_norm_type=weight_norm_type)]
+                mlp += [
+                    conv_block(
+                        mlp_ch,
+                        num_features * 2,
+                        kernel_size,
+                        padding=padding,
+                        weight_norm_type=weight_norm_type,
+                    )
+                ]
                 self.mlps.append(sequential(*mlp))
 
-        self.norm = get_activation_norm_layer(num_features,
-                                              activation_norm_type,
-                                              2,
-                                              **vars(activation_norm_params))
+        self.norm = get_activation_norm_layer(
+            num_features, activation_norm_type, 2, **vars(activation_norm_params)
+        )
         self.conditional = True
 
     def forward(self, x, *cond_inputs, **kwargs):
@@ -213,8 +240,7 @@ class SpatiallyAdaptiveNorm(nn.Module):
         for i in range(len(cond_inputs)):
             if cond_inputs[i] is None:
                 continue
-            label_map = F.interpolate(cond_inputs[i], size=x.size()[2:],
-                                      mode='nearest')
+            label_map = F.interpolate(cond_inputs[i], size=x.size()[2:], mode="nearest")
             if self.separate_projection:
                 hidden = self.mlps[i](label_map)
                 gamma = self.gammas[i](hidden)
@@ -244,44 +270,60 @@ class HyperSpatiallyAdaptiveNorm(nn.Module):
         is_hyper (bool): Whether to use hyper SPADE.
     """
 
-    def __init__(self, num_features, cond_dims,
-                 num_filters=0, kernel_size=3,
-                 weight_norm_type='',
-                 activation_norm_type='sync_batch', is_hyper=True):
+    def __init__(
+        self,
+        num_features,
+        cond_dims,
+        num_filters=0,
+        kernel_size=3,
+        weight_norm_type="",
+        activation_norm_type="sync_batch",
+        is_hyper=True,
+    ):
         super().__init__()
         padding = kernel_size // 2
         self.mlps = nn.ModuleList()
-        if type(cond_dims) != list:
+        if cond_dims is not list:
             cond_dims = [cond_dims]
 
         for i, cond_dim in enumerate(cond_dims):
             mlp = []
             if not is_hyper or (i != 0):
                 if num_filters > 0:
-                    mlp += [Conv2dBlock(cond_dim, num_filters, kernel_size,
-                                        padding=padding,
-                                        weight_norm_type=weight_norm_type,
-                                        nonlinearity='relu')]
+                    mlp += [
+                        Conv2dBlock(
+                            cond_dim,
+                            num_filters,
+                            kernel_size,
+                            padding=padding,
+                            weight_norm_type=weight_norm_type,
+                            nonlinearity="relu",
+                        )
+                    ]
                 mlp_ch = cond_dim if num_filters == 0 else num_filters
-                mlp += [Conv2dBlock(mlp_ch, num_features * 2, kernel_size,
-                                    padding=padding,
-                                    weight_norm_type=weight_norm_type)]
+                mlp += [
+                    Conv2dBlock(
+                        mlp_ch,
+                        num_features * 2,
+                        kernel_size,
+                        padding=padding,
+                        weight_norm_type=weight_norm_type,
+                    )
+                ]
                 mlp = nn.Sequential(*mlp)
             else:
                 if num_filters > 0:
-                    raise ValueError('Multi hyper layer not supported yet.')
+                    raise ValueError("Multi hyper layer not supported yet.")
                 mlp = HyperConv2d(padding=padding)
             self.mlps.append(mlp)
 
-        self.norm = get_activation_norm_layer(num_features,
-                                              activation_norm_type,
-                                              2,
-                                              affine=False)
+        self.norm = get_activation_norm_layer(
+            num_features, activation_norm_type, 2, affine=False
+        )
 
         self.conditional = True
 
-    def forward(self, x, *cond_inputs,
-                norm_weights=(None, None), **kwargs):
+    def forward(self, x, *cond_inputs, norm_weights=(None, None), **kwargs):
         r"""Spatially Adaptive Normalization (SPADE) forward.
         Args:
             x (4D tensor) : Input tensor.
@@ -295,10 +337,11 @@ class HyperSpatiallyAdaptiveNorm(nn.Module):
         for i in range(len(cond_inputs)):
             if cond_inputs[i] is None:
                 continue
-            if type(cond_inputs[i]) == list:
+            if cond_inputs[i] is list:
                 cond_input, mask = cond_inputs[i]
-                mask = F.interpolate(mask, size=x.size()[2:], mode='bilinear',
-                                     align_corners=False)
+                mask = F.interpolate(
+                    mask, size=x.size()[2:], mode="bilinear", align_corners=False
+                )
             else:
                 cond_input = cond_inputs[i]
                 mask = None
@@ -306,8 +349,7 @@ class HyperSpatiallyAdaptiveNorm(nn.Module):
             if norm_weights is None or norm_weights[0] is None or i != 0:
                 affine_params = self.mlps[i](label_map)
             else:
-                affine_params = self.mlps[i](label_map,
-                                             conv_weights=norm_weights)
+                affine_params = self.mlps[i](label_map, conv_weights=norm_weights)
             gamma, beta = affine_params.chunk(2, dim=1)
             if mask is not None:
                 gamma = gamma * (1 - mask)
@@ -362,8 +404,7 @@ class LayerNorm2d(nn.Module):
         return x
 
 
-def get_activation_norm_layer(num_features, norm_type,
-                              input_dim, **norm_params):
+def get_activation_norm_layer(num_features, norm_type, input_dim, **norm_params):
     r"""Return an activation normalization layer.
     Args:
         num_features (int): Number of feature channels.
@@ -378,43 +419,44 @@ def get_activation_norm_layer(num_features, norm_type,
     """
     input_dim = max(input_dim, 1)  # Norm1d works with both 0d and 1d inputs
 
-    if norm_type == 'none' or norm_type == '':
+    if norm_type == "none" or norm_type == "":
         norm_layer = None
-    elif norm_type == 'batch':
+    elif norm_type == "batch":
         # norm = getattr(nn, 'BatchNorm%dd' % input_dim)
-        norm = getattr(sync_batchnorm, 'SynchronizedBatchNorm%dd' % input_dim)
+        norm = getattr(sync_batchnorm, "SynchronizedBatchNorm%dd" % input_dim)
         norm_layer = norm(num_features, **norm_params)
-    elif norm_type == 'instance':
-        affine = norm_params.pop('affine', True)  # Use affine=True by default
-        norm = getattr(nn, 'InstanceNorm%dd' % input_dim)
+    elif norm_type == "instance":
+        affine = norm_params.pop("affine", True)  # Use affine=True by default
+        norm = getattr(nn, "InstanceNorm%dd" % input_dim)
         norm_layer = norm(num_features, affine=affine, **norm_params)
-    elif norm_type == 'sync_batch':
+    elif norm_type == "sync_batch":
         # There is a bug of using amp O1 with synchronize batch norm.
         # The lines below fix it.
-        affine = norm_params.pop('affine', True)
+        affine = norm_params.pop("affine", True)
         # Always call SyncBN with affine=True
         norm_layer = SyncBatchNorm(num_features, affine=True, **norm_params)
         norm_layer.weight.requires_grad = affine
         norm_layer.bias.requires_grad = affine
-    elif norm_type == 'layer':
+    elif norm_type == "layer":
         norm_layer = nn.LayerNorm(num_features, **norm_params)
-    elif norm_type == 'layer_2d':
+    elif norm_type == "layer_2d":
         norm_layer = LayerNorm2d(num_features, **norm_params)
-    elif norm_type == 'group':
+    elif norm_type == "group":
         norm_layer = nn.GroupNorm(num_channels=num_features, **norm_params)
-    elif norm_type == 'adaptive':
+    elif norm_type == "adaptive":
         norm_layer = AdaptiveNorm(num_features, **norm_params)
-    elif norm_type == 'spatially_adaptive':
+    elif norm_type == "spatially_adaptive":
         if input_dim != 2:
-            raise ValueError('Spatially adaptive normalization layers '
-                             'only supports 2D input')
+            raise ValueError(
+                "Spatially adaptive normalization layers " "only supports 2D input"
+            )
         norm_layer = SpatiallyAdaptiveNorm(num_features, **norm_params)
-    elif norm_type == 'hyper_spatially_adaptive':
+    elif norm_type == "hyper_spatially_adaptive":
         if input_dim != 2:
-            raise ValueError('Spatially adaptive normalization layers '
-                             'only supports 2D input')
+            raise ValueError(
+                "Spatially adaptive normalization layers " "only supports 2D input"
+            )
         norm_layer = HyperSpatiallyAdaptiveNorm(num_features, **norm_params)
     else:
-        raise ValueError('Activation norm layer %s '
-                         'is not recognized' % norm_type)
+        raise ValueError("Activation norm layer %s " "is not recognized" % norm_type)
     return norm_layer

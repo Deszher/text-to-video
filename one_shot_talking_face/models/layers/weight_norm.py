@@ -26,13 +26,12 @@ class WeightDemodulation(nn.Module):
             weight demodulation.
     """
 
-    def __init__(self, conv, cond_dims, eps=1e-8,
-                 adaptive_bias=False, demod=True):
+    def __init__(self, conv, cond_dims, eps=1e-8, adaptive_bias=False, demod=True):
         super().__init__()
         self.conv = conv
         self.adaptive_bias = adaptive_bias
         if adaptive_bias:
-            self.conv.register_parameter('bias', None)
+            self.conv.register_parameter("bias", None)
             self.fc_beta = LinearBlock(cond_dims, self.conv.out_channels)
         self.fc_gamma = LinearBlock(cond_dims, self.conv.in_channels)
         self.eps = eps
@@ -48,8 +47,7 @@ class WeightDemodulation(nn.Module):
         weight = self.conv.weight[None, :, :, :, :] * (gamma + 1)
 
         if self.demod:
-            d = torch.rsqrt(
-                (weight ** 2).sum(dim=(2, 3, 4), keepdim=True) + self.eps)
+            d = torch.rsqrt((weight**2).sum(dim=(2, 3, 4), keepdim=True) + self.eps)
             weight = weight * d
 
         x = x.reshape(1, -1, h, w)
@@ -79,14 +77,13 @@ def get_weight_norm_layer(norm_type, **norm_params):
         norm_params: Arbitrary keyword arguments that will be used to
             initialize the weight normalization.
     """
-    if norm_type == 'none' or norm_type == '':  # no normalization
+    if norm_type == "none" or norm_type == "":  # no normalization
         return lambda x: x
-    elif norm_type == 'spectral':  # spectral normalization
+    elif norm_type == "spectral":  # spectral normalization
         return functools.partial(spectral_norm, **norm_params)
-    elif norm_type == 'weight':  # weight normalization
+    elif norm_type == "weight":  # weight normalization
         return functools.partial(weight_norm, **norm_params)
-    elif norm_type == 'weight_demod':  # weight demodulation
+    elif norm_type == "weight_demod":  # weight demodulation
         return functools.partial(weight_demod, **norm_params)
     else:
-        raise ValueError(
-            'Weight norm layer %s is not recognized' % norm_type)
+        raise ValueError("Weight norm layer %s is not recognized" % norm_type)
