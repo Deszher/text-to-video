@@ -13,7 +13,12 @@ def convert_audio_to_16k(input_path: str) -> str:
     output_path = input_path[:-4] + "_16k.wav"
 
     waveform, sample_rate = torchaudio.load(input_path, backend="sox")
-    torchaudio.save(output_path, waveform, 16000, encoding="PCM_S", bits_per_sample=16)
+    # torchaudio.save(output_path, waveform, 16000, encoding="PCM_S", bits_per_sample=16) # in this case audio will be broken
+
+    resampler = torchaudio.transforms.Resample(sample_rate, 16000, dtype=waveform.dtype)
+    resampled_waveform = resampler(waveform)
+
+    torchaudio.save(output_path, resampled_waveform, 16000, bits_per_sample=16)
 
     return output_path
 
