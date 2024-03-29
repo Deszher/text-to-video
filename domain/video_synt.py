@@ -53,7 +53,7 @@ def create_phoneme(audio_path: str, text: str) -> str:
 
 def make_video(img_path: str, audio_path, phoneme_path: str) -> str:
     response = subprocess.run(
-        "python test_script.py --img_path /app/"
+        "python script.py --img_path /app/"
         + img_path
         + " --audio_path /app/"
         + audio_path

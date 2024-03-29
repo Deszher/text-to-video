@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
 
   build:
-
+    name: Build docker images
     runs-on: ubuntu-latest
     env:
       docker_registry_user: ${{ secrets.CI_REGISTRY_USER }}
@@ -13,7 +13,7 @@ jobs:
       #image: djvue/urfu-deployments:pi2-${{ github.ref_name }}
       base_image: djvue/urfu-deployments
       image: djvue/urfu-deployments:pi2-${{ github.sha }}
-      image_latest: djvue/urfu-deployments:pi2-tiny-latest
+      image_latest: djvue/urfu-deployments:pi2-latest
     steps:
     - uses: actions/checkout@v2
     - name: Login into docker hub
@@ -25,9 +25,22 @@ jobs:
     - name: Push the Docker streamlit image
       run: docker push --all-tags $base_image
 
+  test:
+    name: Lint and test
+    needs: [build]
+    runs-on: ubuntu-latest
+    env:
+      image: djvue/urfu-deployments:pi2-${{ github.sha }}
+    steps:
+    - uses: actions/checkout@v2
+    - name: Flake8
+      run: docker run --rm --entrypoint /bin/bash -t $image -c "flake8"
+    - name: Tests
+      run: docker run --rm --entrypoint /bin/bash -t djvue/urfu-deployments:pi2-latest -c "python -m pytest"
+
   deploy:
     name: Deploy to prod host
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     env:
       PACKAGES_TO_UPGRADE: ${{ needs.run_publish.outputs.packages }}
