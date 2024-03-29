@@ -2,8 +2,18 @@ import os
 import shutil
 from pathlib import Path
 
-from PyQt6.QtWidgets import QMainWindow, QPlainTextEdit, QWidget, QPushButton, \
-    QComboBox, QSpinBox, QApplication, QFileDialog, QLabel, QHBoxLayout
+from PyQt6.QtWidgets import (
+    QMainWindow,
+    QPlainTextEdit,
+    QWidget,
+    QPushButton,
+    QComboBox,
+    QSpinBox,
+    QApplication,
+    QFileDialog,
+    QLabel,
+    QHBoxLayout,
+)
 
 from audio_player import MediaPlayer
 from speech_synt import get_speech
@@ -16,48 +26,50 @@ class UIWindow(QWidget):
         y = self.window().height()
         self.label = QLabel(self)
         self.label.move(int(x - x / 1.175), 30)
-        self.label.setText("Введите размер стороны исходной картинки в виде целого числа,"
-                           " картинка будет квадратной формы\n по умолчанию = 450 px")
+        self.label.setText(
+            "Введите размер стороны исходной картинки в виде целого числа,"
+            " картинка будет квадратной формы\n по умолчанию = 450 px"
+        )
         self.numtbox = QSpinBox(self)
-        self.numtbox.setGeometry(int(x - x / 1.175), int(y - y / 1.2),
-                                 int(x - x / 1.5), int(y - y / 1.1))
+        self.numtbox.setGeometry(
+            int(x - x / 1.175), int(y - y / 1.2), int(x - x / 1.5), int(y - y / 1.1)
+        )
 
         self.numtbox.setRange(100, 700)
         self.numtbox.setValue(450)
         self.numtbox.setSuffix(" px")
 
-        self.ToolsBTN = QPushButton('Загрузить изображение', self)
+        self.ToolsBTN = QPushButton("Загрузить изображение", self)
 
         # self.ToolsBTN.move(50, 350)
-        self.ToolsBTN.setGeometry(int(x - x / 1.175), int(y - y / 2.5), int(x - x / 3.5), int(y - y / 1.1))
+        self.ToolsBTN.setGeometry(
+            int(x - x / 1.175), int(y - y / 2.5), int(x - x / 3.5), int(y - y / 1.1)
+        )
         self.ToolsBTN.setStyleSheet(
             # Границы, цвет
-            'margin: 0;'
-            'padding: 0;'
-            'width: 100 %;'
-            'height: 100 vh;'
-            'display: flex;'
-            'flex - direction: row;'
-            'justify - content: center;'
-            'align - items: center;'
-            'background:  # 000;'
-            'border-color: blue;'
-            'border-width: 5px;'
-            'border-style: ridge;'
-            'border-radius: 5;'
-            'font-size: 60px;'
-            'font-weight: bold;'
+            "margin: 0;"
+            "padding: 0;"
+            "width: 100 %;"
+            "height: 100 vh;"
+            "display: flex;"
+            "flex - direction: row;"
+            "justify - content: center;"
+            "align - items: center;"
+            "background:  # 000;"
+            "border-color: blue;"
+            "border-width: 5px;"
+            "border-style: ridge;"
+            "border-radius: 5;"
+            "font-size: 60px;"
+            "font-weight: bold;"
         )
         self.ToolsBTN.setCheckable(True)
         self.ToolsBTN.clicked.connect(self.open_file_dialog)
 
     def open_file_dialog(self):
-        desktop = os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop')
+        desktop = os.path.join(os.path.join(os.path.expanduser("~")), "Desktop")
         filename, ok = QFileDialog.getOpenFileName(
-            self,
-            "Select a File",
-            f"{desktop}",
-            "Images (*.png *.jpg *.jpeg)"
+            self, "Select a File", f"{desktop}", "Images (*.png *.jpg *.jpeg)"
         )
         if filename:
             path = Path(filename)
@@ -79,7 +91,7 @@ class UIToolTab(QWidget):
         self.label_1.setText("Подготовим речь для головы")
         self.label_1.setStyleSheet(
             # Границы, цвет
-            'font-size: 20px;'
+            "font-size: 20px;"
             # 'font-weight: bold;'
         )
         self.textbox = QPlainTextEdit(self)
@@ -89,33 +101,37 @@ class UIToolTab(QWidget):
         self.label_2.move(325, 220)
         self.label_2.setText("Выберите голос говорящего:")
         for i in range(101):
-            self.combo.addItem(f'en_{i}')
+            self.combo.addItem(f"en_{i}")
 
         self.combo.move(490, 220)
-        self.textbox.setGeometry(int(x - x / 1.175), int(y - y / 1.1),
-                                 int(x - x / 3.5), int(y - y / 1.45))
-        self.textbox.setPlaceholderText("Введите текст, который хотите добавить к говорящей голове...")
+        self.textbox.setGeometry(
+            int(x - x / 1.175), int(y - y / 1.1), int(x - x / 3.5), int(y - y / 1.45)
+        )
+        self.textbox.setPlaceholderText(
+            "Введите текст, который хотите добавить к говорящей голове..."
+        )
 
         self.btn1 = QPushButton("Готово", self)
-        self.btn1.setGeometry(int(x - x / 1.175), int(y - y / 2.5), int(x - x / 3.5), int(y - y / 1.1))
+        self.btn1.setGeometry(
+            int(x - x / 1.175), int(y - y / 2.5), int(x - x / 3.5), int(y - y / 1.1)
+        )
         self.btn1.setStyleSheet(
             # Границы, цвет
-            'margin: 0;'
-            'padding: 0;'
-            'width: 100 %;'
-            'height: 100 vh;'
-            'display: flex;'
-            'flex - direction: row;'
-            'justify - content: center;'
-            'align - items: center;'
-            'background:  # 000;'
-            'border-color: blue;'
-            'border-width: 5px;'
-            'border-style: ridge;'
-            'border-radius: 5;'
-
-            'font-size: 60px;'
-            'font-weight: bold;'
+            "margin: 0;"
+            "padding: 0;"
+            "width: 100 %;"
+            "height: 100 vh;"
+            "display: flex;"
+            "flex - direction: row;"
+            "justify - content: center;"
+            "align - items: center;"
+            "background:  # 000;"
+            "border-color: blue;"
+            "border-width: 5px;"
+            "border-style: ridge;"
+            "border-radius: 5;"
+            "font-size: 60px;"
+            "font-weight: bold;"
         )
         text = self.textbox.toPlainText()
         if text.strip():  # Проверка на наличие символов
@@ -138,7 +154,6 @@ class UIEndWindow(QWidget):
     def __init__(self, parent=None):
         super(UIEndWindow, self).__init__(parent)
         x = self.window().width()
-        y = self.window().height()
 
         self.lbl = QLabel("", self)
         self.lbl.move(325, 220)
@@ -165,7 +180,9 @@ class UIEndWindow(QWidget):
 
     def save_file_dialog(self):
         # Запросить директорию для сохранения файла
-        save_dir = QFileDialog.getExistingDirectory(None, "Выберите директорию для сохранения")
+        save_dir = QFileDialog.getExistingDirectory(
+            None, "Выберите директорию для сохранения"
+        )
 
         # Проверяем, что пользователь выбрал директорию
         if save_dir:
@@ -186,7 +203,6 @@ class UIEndWindow(QWidget):
 
 
 class MainWindow(QMainWindow):
-
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.setGeometry(50, 50, 400, 450)

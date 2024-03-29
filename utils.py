@@ -1,7 +1,7 @@
 """Utility functions for the application."""
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QPainter, QColor, QIcon
+from PyQt6.QtGui import QPainter, QColor, QIcon
 
 
 def change_icon_color(icon: QIcon, color: QColor) -> QIcon:

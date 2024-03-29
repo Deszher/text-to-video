@@ -16,7 +16,9 @@ class MediaPlayer(QWidget):
     def __init__(self, parent=None):
         super(MediaPlayer, self).__init__(parent)
         self.setWindowTitle("Media Player")
-        self.setWindowIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.setWindowIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+        )
         self.resize(800, 600)
         self.instance = vlc.Instance()
         self.media = None
@@ -33,11 +35,11 @@ class MediaPlayer(QWidget):
         file = glob.glob("1.*")
 
         for f in file:
-            if not f.endswith('.png'):
+            if not f.endswith(".png"):
                 im = Image.open(f)
                 im = im.resize((500, 400))
                 new_file = "1.png"
-                im.save(new_file, 'PNG')
+                im.save(new_file, "PNG")
         if file:
             pixmap = QPixmap("1.png")
         else:
@@ -88,7 +90,7 @@ class MediaPlayer(QWidget):
 
         # Удаляем файлы с расширениями .png, .jpg и .jpeg
         for file in files:
-            if file.endswith(('.png', '.jpg', '.jpeg')):
+            if file.endswith((".png", ".jpg", ".jpeg")):
                 os.remove(file)
 
     def play_pause(self):
