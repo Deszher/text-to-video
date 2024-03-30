@@ -1,22 +1,30 @@
 """Audio Player Class"""
-import glob
-import os
 import sys
 
 import vlc
-from PIL import Image
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QAction
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QLabel, QStyle
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QSlider, QPushButton, QHBoxLayout
 
+from domain.model import ProcessData
+from domain.processor import Processor
+
 
 class MediaPlayer(QWidget):
-    def __init__(self, parent=None):
+    processor: Processor
+    data: ProcessData
+
+    def __init__(self, processor: Processor, data: ProcessData, parent=None):
         super(MediaPlayer, self).__init__(parent)
+        self.processor = processor
+        self.data = data
+
         self.setWindowTitle("Media Player")
-        self.setWindowIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.setWindowIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+        )
         self.resize(800, 600)
         self.instance = vlc.Instance()
         self.media = None
@@ -30,18 +38,8 @@ class MediaPlayer(QWidget):
 
         self.videoframe = QLabel()
         self.videoframe.resize(600, 500)
-        file = glob.glob("1.*")
 
-        for f in file:
-            if not f.endswith('.png'):
-                im = Image.open(f)
-                im = im.resize((500, 400))
-                new_file = "1.png"
-                im.save(new_file, 'PNG')
-        if file:
-            pixmap = QPixmap("1.png")
-        else:
-            pixmap = QPixmap("img/1.png")
+        pixmap = QPixmap(self.processor.get_image_preview(self.data))
 
         scaled_pixmap = pixmap.scaled(self.videoframe.size())
         self.videoframe.setPixmap(scaled_pixmap)
@@ -83,13 +81,6 @@ class MediaPlayer(QWidget):
         self.timer = QTimer(self)
         self.timer.setInterval(100)
         self.timer.timeout.connect(self.update_ui)
-        # Получаем список всех файлов в текущей директории
-        files = os.listdir()
-
-        # Удаляем файлы с расширениями .png, .jpg и .jpeg
-        for file in files:
-            if file.endswith(('.png', '.jpg', '.jpeg')):
-                os.remove(file)
 
     def play_pause(self):
         if self.mediaplayer.is_playing():
@@ -99,7 +90,7 @@ class MediaPlayer(QWidget):
             self.timer.stop()
         else:
             if self.mediaplayer.play() == -1:
-                self.open_file("test.wav")
+                self.open_file(self.data.audio_file_path)
                 return
             self.mediaplayer.play()
             self.playbutton.setText("Pause")

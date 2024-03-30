@@ -10,5 +10,7 @@ config.ini
 # Игнорировать все файлы в директории temp/
 temp/*
 
+.venv
+.vscode
 
 __pycache__
