@@ -1,4 +1,3 @@
-
 class ProcessData:
     input_text: str = None
     input_speaker: str = None
@@ -8,4 +7,4 @@ class ProcessData:
     video_file_path: str = None
 
     def audio_file_name(self) -> str:
-        return self.audio_file_path.split('/')[1]
+        return self.audio_file_path.split("/")[1]

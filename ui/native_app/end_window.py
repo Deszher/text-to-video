@@ -1,4 +1,3 @@
-import shutil
 from PyQt6.QtWidgets import (
     QWidget,
     QPushButton,
@@ -9,6 +8,7 @@ from PyQt6.QtWidgets import (
 
 from domain.model import ProcessData
 from domain.processor import Processor
+
 
 class UIEndWindow(QWidget):
     processor: Processor

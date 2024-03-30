@@ -1,4 +1,5 @@
 """Processor is a facade to process logic"""
+
 import os
 import shutil
 import uuid
@@ -6,6 +7,7 @@ from pathlib import Path
 
 from domain.model import ProcessData
 from domain.speech_synt import get_speech
+from domain.video_synt import convert_audio_to_16k, create_phoneme, make_video
 
 FALLBACK_IMAGE = "ui/native_app/img/fallback_image.png"
 
@@ -23,11 +25,11 @@ class Processor:
 
     def make_speech(self, data: ProcessData):
         data.audio_file_path = get_speech(data.input_text, data.input_speaker)
-        print("audio path: "+data.audio_file_path)
+        print("audio path: " + data.audio_file_path)
 
     def add_image(self, data: ProcessData, file: str):
-        ext = file.split('.')[-1]
-        image_path = 'data/'+str(uuid.uuid4())+'.'+ext
+        ext = file.split(".")[-1]
+        image_path = "data/" + str(uuid.uuid4()) + "." + ext
         path = Path(file)
 
         shutil.copyfile(path, image_path)
@@ -41,8 +43,13 @@ class Processor:
         return FALLBACK_IMAGE
 
     def make_video(self, data: ProcessData):
-        # TODO: using data.audio_file_path and data.image_file_path make video and save to data.video_file_path
-        data.video_file_path = ""
+        audio_16k_path = convert_audio_to_16k(data.audio_file_path)
+
+        phoneme_path = create_phoneme(audio_16k_path, data.input_text)
+
+        video_path = make_video(data.image_file_path, audio_16k_path, phoneme_path)
+
+        data.video_file_path = video_path
 
     def save_to(self, data: ProcessData, save_dir: str) -> str:
         # Путь и название сохраняемого файла
